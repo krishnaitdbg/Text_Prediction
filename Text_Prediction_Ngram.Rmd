@@ -1,0 +1,180 @@
+---
+title: "Swiftkey_Prediction"
+author: "Krishna"
+date: "5/14/2019"
+output: html_document
+---
+
+```{r include=FALSE}
+setwd("/Users/User1/Desktop/DataScience/Course_10_Capstone_Project/")
+getwd()
+```
+
+```{r include=FALSE}
+library("tm")
+library("RWeka")
+library("ngram")
+library("R.utils")
+library("stringi")
+library("dplyr")
+library("ggplot2")
+library("parallel")
+```
+
+
+## Read input text files 
+
+```{r echo=TRUE}
+### Read text files provided by swiftkey
+
+con <- file("data/en_US/en_US.twitter.txt", "rb") 
+twitter_df <- readLines(con, skipNul = TRUE)
+close(con)
+
+con <- file("data/en_US/en_US.blogs.txt", "rb") 
+blog_df <- readLines(con, skipNul = TRUE)
+close(con)
+
+con <- file("data/en_US/en_US.news.txt", "rb") 
+news_df <- readLines(con, skipNul = TRUE)
+close(con)
+```
+
+## Print the number of lines per each text file
+
+```{r}
+### Print the number of lines per each text file
+paste0("Number of lines in Twitter file: ", length(twitter_df))
+paste0("Number of lines in News file: ", length(news_df))
+paste0("Number of lines in Blog file: ", length(blog_df))
+```
+
+## Print the size of each text file
+
+```{r}
+### Print the size of each text file
+paste0("Number of lines in Twitter file: ", format(object.size(twitter_df), units="Mb"))
+paste0("Number of lines in News file: ", format(object.size(news_df), units="Mb"))
+paste0("Number of lines in Blog file: ", format(object.size(blog_df), units="Mb"))
+```
+
+```{r}
+paste0("Number of words in Twitter file: ", sum(stri_count_words(twitter_df)))
+paste0("Number of words in News file: ", sum(stri_count_words(news_df)))
+paste0("Number of words in Blog file: ", sum(stri_count_words(blog_df)))
+```
+
+
+```{r}
+set.seed(4321)
+twitter <- sample(twitter_df,length(twitter_df)/2)
+news <- sample(twitter_df,length(news_df)/2)
+blog <- sample(twitter_df,length(blog_df)/2)
+```
+
+## Generate N-Grams 
+
+
+Construct n-grams which are crucial to predicting the next word, so it is important to store this data in an efficient manner. 
+
+```{r}
+## Combine all documents to generate n-grams
+allVectorCorpus <- c(VCorpus(VectorSource(twitter)),
+                     VCorpus(VectorSource(news)),
+                     VCorpus(VectorSource(blog)))
+
+corpus <- tm_map(allVectorCorpus, content_transformer(tolower))
+corpus <- tm_map(corpus, removeNumbers)
+corpus <- tm_map(corpus, removePunctuation)
+corpus <- tm_map(corpus, stripWhitespace)
+```
+
+
+```{r}
+## Get Four GRAMS into a data frame
+n4gramTokenizer <- function(x) NGramTokenizer(x, Weka_control(min = 4, max = 4))
+dtm4 <- TermDocumentMatrix(corpus, control=list(tokenize = n4gramTokenizer))
+m4 <- as.matrix(dtm4)
+df4 <- as.data.frame(m4)
+colnames(df4) <- "Count"
+df4 <- df4[order(-df4$Count), , drop = FALSE]
+```
+
+```{r}
+## Get THREE GRAMS into a data frame and truncate table
+n3gramTokenizer <- function(x) NGramTokenizer(x, Weka_control(min = 3, max = 3))
+dtm3 <- TermDocumentMatrix(corpus, control=list(tokenize = n3gramTokenizer))
+m3 <- as.matrix(dtm3)
+df3 <- as.data.frame(m3)
+colnames(df3) <- "Count"
+df3 <- df3[order(-df3$Count), , drop = FALSE]
+```
+
+```{r}
+## Get TWO GRAMS into a data frame and truncate table
+n2gramTokenizer <- function(x) NGramTokenizer(x, Weka_control(min = 2, max = 2))
+dtm2 <- TermDocumentMatrix(corpus, control=list(tokenize = n2gramTokenizer))
+m2 <- as.matrix(dtm2)
+df2 <- as.data.frame(m2)
+colnames(df2) <- "Count"
+df2 <- df2[order(-df2$Count), , drop = FALSE]
+```
+
+
+```{r}
+# Save data frames into r-compressed files
+bigram <- data.frame(rows=rownames(df2),count=df2$Count)
+bigram$rows <- as.character(bigram$rows)
+bigram_split <- strsplit(as.character(bigram$rows),split=" ")
+bigram <- transform(bigram,
+                    first = sapply(bigram_split,"[[",1),
+                    second = sapply(bigram_split,"[[",2))
+bigram <- data.frame(unigram=bigram$first,
+                     bigram=bigram$second,
+                     freq=bigram$count,stringsAsFactors=FALSE)
+write.csv(bigram[bigram$freq > 1,],"data/bigram.csv",row.names=F)
+bigram <- read.csv("data/bigram.csv",stringsAsFactors = F)
+saveRDS(bigram,"data/bigram.RData")
+
+trigram <- data.frame(rows=rownames(df3),count=df3$Count)
+trigram$rows <- as.character(trigram$rows)
+trigram_split <- strsplit(as.character(trigram$rows),split=" ")
+trigram <- transform(trigram,
+                     first = sapply(trigram_split,"[[",1),
+                     second = sapply(trigram_split,"[[",2),
+                     third = sapply(trigram_split,"[[",3))
+trigram <- data.frame(unigram = trigram$first,
+                      bigram = trigram$second, 
+                      trigram = trigram$third, 
+                      freq = trigram$count,stringsAsFactors=FALSE)
+write.csv(trigram[trigram$freq > 1,],"data/trigram.csv",row.names=F)
+trigram <- read.csv("data/trigram.csv",stringsAsFactors = F)
+saveRDS(trigram,"data/trigram.RData")
+
+quadgram <- data.frame(rows=rownames(df4),count=df4$Count)
+quadgram$rows <- as.character(quadgram$rows)
+quadgram_split <- strsplit(as.character(quadgram$rows),split=" ")
+quadgram <- transform(quadgram,first = sapply(quadgram_split,"[[",1),
+                      second = sapply(quadgram_split,"[[",2),
+                      third = sapply(quadgram_split,"[[",3), 
+                      fourth = sapply(quadgram_split,"[[",4))
+quadgram <- data.frame(unigram = quadgram$first,
+                       bigram = quadgram$second, 
+                       trigram = quadgram$third, 
+                       quadgram = quadgram$fourth, 
+                       freq = quadgram$count,stringsAsFactors=FALSE)
+write.csv(quadgram[quadgram$freq > 1,],"data/quadgram.csv",row.names=F)
+quadgram <- read.csv("data/quadgram.csv",stringsAsFactors = F)
+saveRDS(quadgram,"data/quadgram.RData")
+```
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,48 @@
+---
+title: "Text_Predict"
+author: "Krishna"
+date: "05/16/2019"
+output:
+  slidy_presentation: default
+  ioslides_presentation: default
+---
+
+Overview
+---------
+
+
+- This app uses ngram stupid backoff model for capstone project *Coursera - Johns Hopkins University - SwiftKey*.   
+- It will predict the next word, as user types a sentence similar to SwiftKey text prediction on smart phones.
+
+Important Links
+-----------------
+
+
+- Access Shiny app [Click Here](https://krishnaitdbg.shinyapps.io/Text_Predict_Capstone_Project/)  
+- Source code is available on Git hub [Click Here](https://github.com/krishnaitdbg/Text_Prediction)
+- Data is provided by Coursera, Johns Hopkins and Swiftkey  [Click Here](https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip)
+
+
+Algorithm used and process followed
+-------------------------------------
+
+- This app uses english text files (Twitter feed, blogs and news), samples them and builds Corpus.
+- Format corpus by tokenization, removing Stopwords, punctuation.
+- Builds n-gram model, Creating 2 gram,3 gram and 4gram frequency matrices.
+- Builds predictive model using n-gram stupid backoff model 
+  (Quadgram is first used; If no Quadgram is found, back off to Trigram; If no Trigram is found, back off to Bigram; 
+   If no Bigram is found, back off to the most common word 'the').
+- Builds Text Predict shiny App and deploys it on shinyapps.io
+
+
+USER INSTRUCTIONS
+---------------------
+
+- Open [Shiny app](https://krishnaitdbg.shinyapps.io/Text_Predict_Capstone_Project/).
+- In input text box, start typing your sentence.
+- As you type, next word is predicted automatically and shown in the below box 'Predicted Next Word'.
+- Enjoy the app.
+
+
+
+
